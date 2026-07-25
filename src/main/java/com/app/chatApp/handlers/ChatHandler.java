@@ -1,5 +1,7 @@
 package com.app.chatApp.handlers;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
@@ -42,6 +44,24 @@ public class ChatHandler extends TextWebSocketHandler {
 
         users.put(mblNo, session);
         System.out.println(users.toString());
+
+        try {
+            List<String> sendersToNotify = utilityHandler.deliverPendingMessages(mblNo);
+            for (String senderMblNo : sendersToNotify) {
+                WebSocketSession senderSession = users.get(senderMblNo);
+                if (senderSession != null && senderSession.isOpen()) {
+                    Map<String, Object> updateEvent = new HashMap<>();
+                    updateEvent.put("type", "STATUS_UPDATE");
+                    updateEvent.put("sender", senderMblNo);
+                    updateEvent.put("receiver", mblNo);
+                    updateEvent.put("status", "DELIVERED");
+                    senderSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(updateEvent)));
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to update and notify of pending messages for " + mblNo + ": " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     public void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {

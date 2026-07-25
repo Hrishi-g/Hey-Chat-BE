@@ -59,4 +59,14 @@ public class UtilityHandler {
 
         homeMessageListRepo.save(home);
     }
+
+    @org.springframework.transaction.annotation.Transactional
+    public java.util.List<String> deliverPendingMessages(String receiverMblNo) {
+        java.util.List<String> uniqueSenders = messagesRepo.findUniqueSendersWithSentMessages(receiverMblNo);
+        if (!uniqueSenders.isEmpty()) {
+            messagesRepo.updateStatusByReceiver(receiverMblNo, MessageStatus.SENT, MessageStatus.DELIVERED, LocalDateTime.now());
+            homeMessageListRepo.updateStatusByReceiver(receiverMblNo, MessageStatus.SENT, MessageStatus.DELIVERED);
+        }
+        return uniqueSenders;
+    }
 }
