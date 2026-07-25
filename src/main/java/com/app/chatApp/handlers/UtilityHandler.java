@@ -12,6 +12,8 @@ import com.app.chatApp.vo.HomeMessageList;
 import com.app.chatApp.vo.Messages;
 import com.app.chatApp.vo.enums.MessageStatus;
 
+import jakarta.transaction.Transactional;
+
 @Component
 public class UtilityHandler {
 
@@ -60,13 +62,20 @@ public class UtilityHandler {
         homeMessageListRepo.save(home);
     }
 
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     public java.util.List<String> deliverPendingMessages(String receiverMblNo) {
         java.util.List<String> uniqueSenders = messagesRepo.findUniqueSendersWithSentMessages(receiverMblNo);
         if (!uniqueSenders.isEmpty()) {
-            messagesRepo.updateStatusByReceiver(receiverMblNo, MessageStatus.SENT, MessageStatus.DELIVERED, LocalDateTime.now());
+            messagesRepo.updateStatusByReceiver(receiverMblNo, MessageStatus.SENT, MessageStatus.DELIVERED,
+                    LocalDateTime.now());
             homeMessageListRepo.updateStatusByReceiver(receiverMblNo, MessageStatus.SENT, MessageStatus.DELIVERED);
         }
         return uniqueSenders;
+    }
+
+    @Transactional
+    public void markMessagesAsRead(String sender, String receiver) {
+        messagesRepo.updateStatusBySenderAndReceiver(sender, receiver, MessageStatus.READ, LocalDateTime.now());
+        homeMessageListRepo.updateStatusBySenderAndReceiver(sender, receiver, MessageStatus.READ);
     }
 }

@@ -71,6 +71,19 @@ public class ChatHandler extends TextWebSocketHandler {
         String sessionMblNo = (String) session.getAttributes().get("mblNo");
 
         if (sessionMblNo != null && sessionMblNo.equals(msg.getSender())) {
+            if ("READ".equals(msg.getType())) {
+                utilityHandler.markMessagesAsRead(msg.getReceiver(), msg.getSender());
+                WebSocketSession originalSenderSession = users.get(msg.getReceiver());
+                if (originalSenderSession != null && originalSenderSession.isOpen()) {
+                    Map<String, Object> updateEvent = new HashMap<>();
+                    updateEvent.put("type", "STATUS_UPDATE");
+                    updateEvent.put("sender", msg.getReceiver());
+                    updateEvent.put("receiver", msg.getSender());
+                    updateEvent.put("status", "READ");
+                    originalSenderSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(updateEvent)));
+                }
+                return;
+            }
             msg.setType("CHAT");
             WebSocketSession receiverSession = users.get(msg.getReceiver());
             // Both Online

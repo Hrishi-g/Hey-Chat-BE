@@ -42,4 +42,13 @@ public interface MessagesRepo extends JpaRepository<Messages, Long> {
                         @Param("targetStatus") MessageStatus targetStatus,
                         @Param("status") MessageStatus status,
                         @Param("deliveredTime") LocalDateTime deliveredTime);
+
+        @Modifying
+        @Transactional
+        @Query("UPDATE Messages m SET m.status = :status, m.receiverTime = :readTime WHERE m.sender = :sender AND m.receiver = :receiver AND (m.status = 'SENT' OR m.status = 'DELIVERED')")
+        int updateStatusBySenderAndReceiver(
+                        @Param("sender") String sender,
+                        @Param("receiver") String receiver,
+                        @Param("status") MessageStatus status,
+                        @Param("readTime") LocalDateTime readTime);
 }

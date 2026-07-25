@@ -50,4 +50,12 @@ public interface HomeMessageListRepo extends JpaRepository<HomeMessageList, Long
             @Param("receiver") String receiver,
             @Param("targetStatus") MessageStatus targetStatus,
             @Param("status") MessageStatus status);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE HomeMessageList m SET m.status = :status WHERE m.sender = :sender AND m.receiver = :receiver AND (m.status = 'SENT' OR m.status = 'DELIVERED')")
+    int updateStatusBySenderAndReceiver(
+            @Param("sender") String sender,
+            @Param("receiver") String receiver,
+            @Param("status") MessageStatus status);
 }
