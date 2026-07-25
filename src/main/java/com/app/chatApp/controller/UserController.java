@@ -1,6 +1,7 @@
 package com.app.chatApp.controller;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,6 +15,7 @@ import com.app.chatApp.dto.ChatDto;
 import com.app.chatApp.dto.GetChatsRequestDto;
 import com.app.chatApp.dto.SecurityContextDto;
 import com.app.chatApp.service.UserService;
+import com.app.chatApp.vo.RegisteredUsers;
 
 @RestController
 @RequestMapping("/user")
@@ -38,7 +40,7 @@ public class UserController {
     }
 
     @PostMapping("/getNewUser")
-    public ResponseEntity<String> getNewUser(@RequestBody GetChatsRequestDto req) {
+    public ResponseEntity<Optional<RegisteredUsers>> getNewUser(@RequestBody GetChatsRequestDto req) {
         return userService.getNewUser(req.getReceiver());
     }
 

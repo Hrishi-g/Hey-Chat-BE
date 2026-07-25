@@ -37,9 +37,6 @@ public class UserService {
 
     public ResponseEntity<?> getHomeMessageChat(String mobNO) {
         List<LastMsgChatDTo> messages = homeMessageListRepo.findLastMsgChatList(mobNO);
-        if (messages.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User Not Found");
-        }
 
         // Extract unique partner mobile numbers
         List<String> partnerMblNos = messages.stream()
@@ -69,12 +66,12 @@ public class UserService {
         return ResponseEntity.ok(messages);
     }
 
-    public ResponseEntity<String> getNewUser(String mobNO) {
-        Optional<String> receiver = registeredUsersRepo.findByMblNo(mobNO);
+    public ResponseEntity<Optional<RegisteredUsers>> getNewUser(String mobNO) {
+        Optional<RegisteredUsers> receiver = registeredUsersRepo.findUserByMblNo(mobNO);
         if (receiver.isPresent()) {
-            return ResponseEntity.ok("User Found");
+            return ResponseEntity.ok().body(receiver);
         } else {
-            return ResponseEntity.ok("User Not Found");
+            return ResponseEntity.ok(null);
         }
     }
 }

@@ -17,6 +17,7 @@ public interface RegisteredUsersRepo extends JpaRepository<RegisteredUsers, Long
     @Query("SELECT u.mblNo FROM RegisteredUsers u where u.mblNo=:mblNo")
     Optional<String> findByMblNo(String mblNo);
 
+    @Query("SELECT u FROM RegisteredUsers u WHERE u.mblNo = :mblNo")
     Optional<RegisteredUsers> findUserByMblNo(String mblNo);
 
     List<RegisteredUsers> findByMblNoIn(Collection<String> mblNos);

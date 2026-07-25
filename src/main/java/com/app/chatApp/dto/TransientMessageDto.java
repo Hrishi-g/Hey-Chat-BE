@@ -6,6 +6,7 @@ public class TransientMessageDto {
     private String receiver;
     private String message;
     private long timeStamp;
+    private String status;
 
     public TransientMessageDto() {
     }
@@ -16,6 +17,14 @@ public class TransientMessageDto {
         this.receiver = receiver;
         this.message = message;
         this.timeStamp = System.currentTimeMillis();
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public String getType() {

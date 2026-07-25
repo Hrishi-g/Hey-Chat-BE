@@ -60,9 +60,12 @@ public class ChatHandler extends TextWebSocketHandler {
                 // updating last msg
                 utilityHandler.updateHomeMessageList(msg, MessageStatus.DELIVERED);
 
+                msg.setStatus("DELIVERED");
                 String chatJson = objectMapper.writeValueAsString(msg);
                 receiverSession.sendMessage(new TextMessage(chatJson));
-                session.sendMessage(new TextMessage(chatJson));
+                if (!receiverSession.equals(session)) {
+                    session.sendMessage(new TextMessage(chatJson));
+                }
 
                 System.out.println("Both Online");
             }
@@ -73,6 +76,7 @@ public class ChatHandler extends TextWebSocketHandler {
                 // updating last msg
                 utilityHandler.updateHomeMessageList(msg, MessageStatus.SENT);
 
+                msg.setStatus("SENT");
                 String chatJson = objectMapper.writeValueAsString(msg);
                 session.sendMessage(new TextMessage(chatJson));
 
