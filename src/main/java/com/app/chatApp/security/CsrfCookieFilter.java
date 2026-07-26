@@ -3,7 +3,6 @@ package com.app.chatApp.security;
 import java.io.IOException;
 
 import org.springframework.security.web.csrf.CsrfToken;
-import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -15,12 +14,6 @@ import jakarta.servlet.http.HttpServletResponse;
 @Service
 public class CsrfCookieFilter extends OncePerRequestFilter {
 
-    private final CsrfTokenRepository csrfTokenRepository;
-
-    public CsrfCookieFilter(CsrfTokenRepository csrfTokenRepository) {
-        this.csrfTokenRepository = csrfTokenRepository;
-    }
-
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -28,11 +21,10 @@ public class CsrfCookieFilter extends OncePerRequestFilter {
             FilterChain filterChain)
             throws ServletException, IOException {
 
-        CsrfToken token = csrfTokenRepository.loadToken(request);
-
-        if (token == null) {
-            token = csrfTokenRepository.generateToken(request);
-            csrfTokenRepository.saveToken(token, request, response);
+        CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+        if (csrfToken != null) {
+            // Accessing the token forces its initialization and cookie generation in Spring Security 6
+            csrfToken.getToken();
         }
 
         filterChain.doFilter(request, response);
