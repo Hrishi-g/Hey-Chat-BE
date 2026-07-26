@@ -16,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -49,6 +50,7 @@ public class SecurityConfig {
                     CookieCsrfTokenRepository repository = CookieCsrfTokenRepository
                             .withHttpOnlyFalse();
                     repository.setCookieCustomizer(cookie -> {
+                        cookie.path("/");
                         cookie.sameSite("None");
                         cookie.secure(cookieSecure);
                     });
@@ -67,7 +69,7 @@ public class SecurityConfig {
                         .requestMatchers("/ws/**", "/chat", "/chat/**", "/error").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(csrfCookieFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(csrfCookieFilter, CsrfFilter.class)
                 .build();
     }
 
