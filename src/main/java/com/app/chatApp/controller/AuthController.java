@@ -34,4 +34,9 @@ public class AuthController {
         System.out.println("X-Client-Type :" + clientType);
         return userSrc.login(userDto, clientType, httpResponse);
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(HttpServletResponse httpResponse) {
+        return userSrc.logout(httpResponse);
+    }
 }

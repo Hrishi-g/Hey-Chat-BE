@@ -76,4 +76,9 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid Credentials");
         }
     }
+
+    public ResponseEntity<String> logout(HttpServletResponse httpResponse) {
+        cookieUtil.clearJwtCookie(httpResponse);
+        return ResponseEntity.ok("Logout Success");
+    }
 }
