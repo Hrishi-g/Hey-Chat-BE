@@ -2,8 +2,11 @@ package com.app.chatApp.vo;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.ColumnTransformer;
+
 import com.app.chatApp.vo.enums.MessageStatus;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -19,6 +22,8 @@ public class HomeMessageList {
     Long msgId;
     String sender;
     String receiver;
+    @ColumnTransformer(read = "pgp_sym_decrypt(last_msg, current_setting('chat.secret'))", write = "pgp_sym_encrypt(?::text, current_setting('chat.secret'), 'cipher-algo=aes256, compress-algo=2')")
+    @Column(columnDefinition = "bytea", nullable = false)
     String lastMsg;
     @Enumerated(EnumType.STRING)
     MessageStatus status;

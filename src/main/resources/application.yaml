@@ -1,13 +1,18 @@
 spring:
   application:
     name: chatApp
+
   config:
     import: optional:file:.env[.properties]
+
   datasource:
     url: ${DATASOURCE_URL}
     username: ${DATASOURCE_USERNAME}
     password: ${DATASOURCE_PASS}
     driver-class-name: ${DATASOURCE_DRIVER_CLASSNAME}
+    hikari:
+      connection-init-sql: "SELECT set_config('chat.secret', '${msg.secret}', false)"
+
   jpa:
     show-sql: ${JPA_HIBERNATE_SHOW_SQL}
     generate-ddl: ${JPA_HIBERNATE_GENERATE_DDL}
@@ -20,3 +25,7 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET}
+
+msg:
+  secret: ${MSG_ENCRYPTION_SECRET}
+
