@@ -1,7 +1,9 @@
 package com.app.chatApp.config;
 
+import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -13,26 +15,47 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.app.chatApp.security.CsrfCookieFilter;
 import com.app.chatApp.security.JwtFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @Value("${cors.allowed-origins}")
+    private String allowedOrigins;
+
+    @Value("${cookie.secure}")
+    private boolean cookieSecure;
+
+    private final CsrfCookieFilter csrfCookieFilter;
     private final JwtFilter jwtFilter;
 
-    SecurityConfig(JwtFilter jwtFilter) {
+    SecurityConfig(JwtFilter jwtFilter, CsrfCookieFilter csrfCookieFilter) {
         this.jwtFilter = jwtFilter;
+        this.csrfCookieFilter = csrfCookieFilter;
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> {
+                    CookieCsrfTokenRepository repository = CookieCsrfTokenRepository
+                            .withHttpOnlyFalse();
+                    repository.setCookieCustomizer(cookie -> {
+                        cookie.sameSite("None");
+                        cookie.secure(cookieSecure);
+                    });
+                    csrf.csrfTokenRepository(repository)
+                            .csrfTokenRequestHandler(requestHandler())
+                            .ignoringRequestMatchers("/auth/**", "/ws/**", "/chat", "/chat/**");
+                })
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
@@ -44,27 +67,8 @@ public class SecurityConfig {
                         .requestMatchers("/ws/**", "/chat", "/chat/**", "/error").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(csrfCookieFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        // Specify allowed origins for local development
-        configuration.setAllowedOrigins(List.of("http://localhost:4000", "http://localhost:5173"));
-        // Allow credentials (cookies, auth headers)
-        configuration.setAllowCredentials(true);
-        // Allow all methods
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        // Allow all headers
-        configuration.setAllowedHeaders(
-                List.of("Content-Type", "Authorization", "X-Client-Type"));
-        // Expose headers if needed (e.g., for custom auth headers)
-        configuration.setExposedHeaders(List.of("Authorization"));
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-
-        return source;
     }
 
     @Bean
@@ -76,4 +80,28 @@ public class SecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
+    @Bean
+    public CsrfTokenRequestAttributeHandler requestHandler() {
+        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
+        requestHandler.setCsrfRequestAttributeName(null);
+        return requestHandler;
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowCredentials(true);
+        config.setAllowedOriginPatterns(
+                Arrays.stream(allowedOrigins.split(","))
+                        .map(String::trim)
+                        .toList());
+        config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setMaxAge(3600L);
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+
 }

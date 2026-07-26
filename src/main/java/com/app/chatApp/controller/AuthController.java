@@ -28,7 +28,8 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestHeader("X-Client-Type") String clientType,
+    public ResponseEntity<String> login(
+            @RequestHeader(value = "X-Client-Type", required = false, defaultValue = "web") String clientType,
             @RequestBody LoginDto userDto, HttpServletResponse httpResponse) {
         System.out.println("X-Client-Type :" + clientType);
         return userSrc.login(userDto, clientType, httpResponse);
