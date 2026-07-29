@@ -35,7 +35,6 @@ public class ChatHandler extends TextWebSocketHandler {
 
         String mblNo = ticketService.redeemTicket(ticket);
         if (mblNo == null) {
-            System.out.println("Rejected WebSocket connection: Invalid, expired, or reused ticket: " + ticket);
             session.close(org.springframework.web.socket.CloseStatus.BAD_DATA);
             return;
         }
@@ -43,7 +42,6 @@ public class ChatHandler extends TextWebSocketHandler {
         session.getAttributes().put("mblNo", mblNo);
 
         users.put(mblNo, session);
-        System.out.println(users.toString());
 
         try {
             List<String> sendersToNotify = utilityHandler.deliverPendingMessages(mblNo);
@@ -99,8 +97,6 @@ public class ChatHandler extends TextWebSocketHandler {
                 if (!receiverSession.equals(session)) {
                     session.sendMessage(new TextMessage(chatJson));
                 }
-
-                System.out.println("Both Online");
             }
             // sender Online , Receiver Offline
             else {
@@ -112,12 +108,11 @@ public class ChatHandler extends TextWebSocketHandler {
                 msg.setStatus("SENT");
                 String chatJson = objectMapper.writeValueAsString(msg);
                 session.sendMessage(new TextMessage(chatJson));
-
-                System.out.println("Receiver Offline");
             }
         } else {
-            System.out.println(
-                    "Sender mismatch or unauthorized: msg sender=" + msg.getSender() + ", session=" + sessionMblNo);
+            // System.out.println(
+            // "Sender mismatch or unauthorized: msg sender=" + msg.getSender() + ",
+            // session=" + sessionMblNo);
         }
     }
 
@@ -127,7 +122,6 @@ public class ChatHandler extends TextWebSocketHandler {
         String mblNo = (String) session.getAttributes().get("mblNo");
         if (mblNo != null) {
             users.remove(mblNo);
-            System.out.println("Connection closed. Removed user: " + mblNo + ". Remaining active: " + users.keySet());
         }
     }
 }

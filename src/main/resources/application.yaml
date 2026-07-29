@@ -34,3 +34,13 @@ cors:
 
 cookie:
   secure: ${COOKIE_SECURE:true}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: mappings
+
+logging:
+  level:
+    org.springframework.security: TRACE

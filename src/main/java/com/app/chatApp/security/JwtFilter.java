@@ -54,7 +54,8 @@ public class JwtFilter extends OncePerRequestFilter {
             try {
                 mblNo = jwtUtil.extractMblNoFromJwtToken(token);
             } catch (Exception e) {
-                System.out.println("Failed to extract mobile number from JWT: " + e.getMessage());
+                // System.out.println("Failed to extract mobile number from JWT: " +
+                // e.getMessage());
             }
         }
 
@@ -64,7 +65,10 @@ public class JwtFilter extends OncePerRequestFilter {
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                     userDetails, null, userDetails.getAuthorities());
             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authToken);
+
+            var context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(authToken);
+            SecurityContextHolder.setContext(context);
         }
 
         filterChain.doFilter(request, response);

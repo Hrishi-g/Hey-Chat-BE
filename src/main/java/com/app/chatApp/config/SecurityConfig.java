@@ -38,35 +38,40 @@ public class SecurityConfig {
     private final CsrfCookieFilter csrfCookieFilter;
     private final JwtFilter jwtFilter;
 
-    SecurityConfig(JwtFilter jwtFilter, CsrfCookieFilter csrfCookieFilter) {
+    public SecurityConfig(JwtFilter jwtFilter, CsrfCookieFilter csrfCookieFilter) {
         this.jwtFilter = jwtFilter;
         this.csrfCookieFilter = csrfCookieFilter;
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
+        // Use standard attribute handler and disable deferred token name resolution
+        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
+        requestHandler.setCsrfRequestAttributeName(null);
+
         return http
-                .csrf(csrf -> {
-                    CookieCsrfTokenRepository repository = CookieCsrfTokenRepository
-                            .withHttpOnlyFalse();
-                    repository.setCookieCustomizer(cookie -> {
-                        cookie.path("/");
-                        cookie.sameSite("None");
-                        cookie.secure(cookieSecure);
-                    });
-                    csrf.csrfTokenRepository(repository)
-                            .csrfTokenRequestHandler(requestHandler())
-                            .ignoringRequestMatchers("/auth/**", "/ws/**", "/chat", "/chat/**");
-                })
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(csrfTokenRepository())
+                        .csrfTokenRequestHandler(requestHandler)
+                        .sessionAuthenticationStrategy((authentication, request, response) -> {
+                            // No-op: Do not replace CSRF token on authentication
+                        })
+                        // Ignore endpoints where authentication is already secured via JWT headers
+                        .ignoringRequestMatchers("/auth/**", "/ws/**")
+                // "/secure/ws-ticket")
+                )
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/user/**").authenticated()
-                        .requestMatchers("/secure/**").authenticated()
-                        .requestMatchers("/ws/**", "/chat", "/chat/**", "/error").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/csrf", "/error").permitAll()
+                        .requestMatchers("/user/**", "/secure/**").authenticated()
+                        // .requestMatchers("/ws/**", "/chat", "/chat/**", "/error",
+                        // "/csrf").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(csrfCookieFilter, CsrfFilter.class)
@@ -84,27 +89,36 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CsrfTokenRequestAttributeHandler requestHandler() {
-        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
-        requestHandler.setCsrfRequestAttributeName(null);
-        return requestHandler;
-    }
-
-    @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
+
         config.setAllowedOriginPatterns(
                 Arrays.stream(allowedOrigins.split(","))
                         .map(String::trim)
                         .toList());
-        config.setAllowedHeaders(List.of("*"));
-        config.setExposedHeaders(List.of("*"));
+
+        config.setAllowedHeaders(
+                List.of("Authorization", "Cache-Control", "Content-Type", "X-XSRF-TOKEN", "X-Client-Type"));
+        config.setExposedHeaders(List.of("Authorization", "X-XSRF-TOKEN"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setMaxAge(3600L);
+
         source.registerCorsConfiguration("/**", config);
         return source;
     }
 
+    @Bean
+    CookieCsrfTokenRepository csrfTokenRepository() {
+        CookieCsrfTokenRepository repo = CookieCsrfTokenRepository.withHttpOnlyFalse();
+
+        repo.setCookieCustomizer(cookie -> {
+            cookie.path("/");
+            cookie.sameSite("None");
+            cookie.secure(true);
+        });
+
+        return repo;
+    }
 }
