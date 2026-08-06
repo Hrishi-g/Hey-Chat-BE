@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.app.chatApp.dto.ChatDto;
 import com.app.chatApp.dto.GetChatsRequestDto;
 import com.app.chatApp.dto.SecurityContextDto;
+import com.app.chatApp.dto.UserDto;
 import com.app.chatApp.service.UserService;
 import com.app.chatApp.vo.RegisteredUsers;
 
@@ -27,9 +28,23 @@ public class UserController {
         this.userService = userService;
     }
 
-    @GetMapping("/me")
-    public ResponseEntity<SecurityContextDto> getMe(@AuthenticationPrincipal SecurityContextDto user) {
-        return ResponseEntity.ok(user);
+    @GetMapping("/profile")
+    public ResponseEntity<UserDto> getProfile(@AuthenticationPrincipal SecurityContextDto user) {
+        UserDto tempUser = userService.getProfile(user.getUserId());
+        if (tempUser != null) {
+            return ResponseEntity.ok(tempUser);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/profile/update")
+    public ResponseEntity<UserDto> updateProfile(@AuthenticationPrincipal SecurityContextDto user,
+            @RequestBody UserDto userDto) {
+        UserDto updatedUser = userService.updateProfile(user.getUserId(), userDto);
+        if (updatedUser != null) {
+            return ResponseEntity.ok(updatedUser);
+        }
+        return ResponseEntity.notFound().build();
     }
 
     @PostMapping("/chats")

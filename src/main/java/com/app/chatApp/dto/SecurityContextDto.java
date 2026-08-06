@@ -6,23 +6,23 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 public class SecurityContextDto implements UserDetails {
-    private String name;
+    private Long userId;
     private String mblNo;
 
     public SecurityContextDto() {
     }
 
-    public SecurityContextDto(String name, String mblNo) {
-        this.name = name;
+    public SecurityContextDto(Long userId, String mblNo) {
+        this.userId = userId;
         this.mblNo = mblNo;
     }
 
-    public String getName() {
-        return name;
+    public Long getUserId() {
+        return userId;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     public String getMblNo() {
@@ -50,7 +50,6 @@ public class SecurityContextDto implements UserDetails {
 
     @Override
     public String toString() {
-        return "SecurityContextDto [name=" + name + ", mblNo=" + mblNo + "]";
+        return "SecurityContextDto [userId=" + userId + ", mblNo=" + mblNo + "]";
     }
 }
-

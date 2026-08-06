@@ -10,8 +10,6 @@ spring:
     username: ${DATASOURCE_USERNAME}
     password: ${DATASOURCE_PASS}
     driver-class-name: ${DATASOURCE_DRIVER_CLASSNAME}
-    hikari:
-      connection-init-sql: "SELECT set_config('chat.secret', '${msg.secret}', false)"
 
   jpa:
     show-sql: ${JPA_HIBERNATE_SHOW_SQL}
@@ -23,10 +21,14 @@ spring:
       hibernate:
         dialect: ${JPA_HIBERNATE_DIALECT}
 
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVER_URL}
+    admin:
+      auto-create: true
 jwt:
   secret: ${JWT_SECRET}
 
-msg:
+chat:
   secret: ${MSG_ENCRYPTION_SECRET}
 
 cors:
@@ -34,6 +36,14 @@ cors:
 
 cookie:
   secure: ${COOKIE_SECURE:true}
+
+cloudflare:
+  r2:
+    account-id: ${CLOUDFLARE_R2_ACCOUNT_ID}
+    access-key: ${CLOUDFLARE_R2_ACCESS_KEY}
+    secret-key: ${CLOUDFLARE_R2_SECRET_KEY}
+    bucket-name: ${CLOUDFLARE_R2_BUCKET_NAME}
+    public-domain: ${CLOUDFLARE_R2_PUBLIC_DOMAIN}
 
 management:
   endpoints:

@@ -22,7 +22,8 @@ public class Messages {
     Long msgId;
     String sender;
     String receiver;
-    @ColumnTransformer(read = "pgp_sym_decrypt(msg, current_setting('chat.secret'))", write = "pgp_sym_encrypt(?::text, current_setting('chat.secret'), 'cipher-algo=aes256, compress-algo=2')")
+    @ColumnTransformer(read = "pgp_sym_decrypt(msg, '" + "${chat.secret}" + "')", write = "pgp_sym_encrypt(?::text, '"
+            + "${chat.secret}" + "', 'cipher-algo=aes256, compress-algo=2')")
     @Column(columnDefinition = "bytea", nullable = false)
     String msg;
     @Enumerated(EnumType.STRING)

@@ -15,14 +15,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-import org.springframework.security.web.csrf.CsrfFilter;
+// import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+// import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import com.app.chatApp.security.CsrfCookieFilter;
+// import com.app.chatApp.security.CsrfCookieFilter;
 import com.app.chatApp.security.JwtFilter;
 
 @Configuration
@@ -35,12 +35,12 @@ public class SecurityConfig {
     @Value("${cookie.secure}")
     private boolean cookieSecure;
 
-    private final CsrfCookieFilter csrfCookieFilter;
+    // private final CsrfCookieFilter csrfCookieFilter;
     private final JwtFilter jwtFilter;
 
-    public SecurityConfig(JwtFilter jwtFilter, CsrfCookieFilter csrfCookieFilter) {
+    public SecurityConfig(JwtFilter jwtFilter) {
         this.jwtFilter = jwtFilter;
-        this.csrfCookieFilter = csrfCookieFilter;
+        // this.csrfCookieFilter = csrfCookieFilter;
     }
 
     @Bean
@@ -51,30 +51,26 @@ public class SecurityConfig {
         requestHandler.setCsrfRequestAttributeName(null);
 
         return http
-                .csrf(csrf -> csrf
-                        .csrfTokenRepository(csrfTokenRepository())
-                        .csrfTokenRequestHandler(requestHandler)
-                        .sessionAuthenticationStrategy((authentication, request, response) -> {
-                            // No-op: Do not replace CSRF token on authentication
-                        })
-                        // Ignore endpoints where authentication is already secured via JWT headers
-                        .ignoringRequestMatchers("/auth/**", "/ws/**")
+                .csrf(csrf -> csrf.disable())
+                // csrf -> csrf
+                // .csrfTokenRepository(csrfTokenRepository())
+                // .csrfTokenRequestHandler(requestHandler)
+                // .sessionAuthenticationStrategy((authentication, request, response) -> {
+                // // No-op: Do not replace CSRF token on authentication
+                // })
+                // Ignore endpoints where authentication is already secured via JWT headers
+                // .ignoringRequestMatchers("/auth/**", "/ws/**")
                 // "/secure/ws-ticket")
-                )
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers("/csrf", "/error").permitAll()
+                        .requestMatchers("/auth/**", "/actuator/**", "/error").permitAll()
                         .requestMatchers("/user/**", "/secure/**").authenticated()
-                        // .requestMatchers("/ws/**", "/chat", "/chat/**", "/error",
-                        // "/csrf").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(csrfCookieFilter, CsrfFilter.class)
+                // .addFilterAfter(csrfCookieFilter, CsrfFilter.class)
                 .build();
     }
 
@@ -109,16 +105,17 @@ public class SecurityConfig {
         return source;
     }
 
-    @Bean
-    CookieCsrfTokenRepository csrfTokenRepository() {
-        CookieCsrfTokenRepository repo = CookieCsrfTokenRepository.withHttpOnlyFalse();
+    // @Bean
+    // CookieCsrfTokenRepository csrfTokenRepository() {
+    // CookieCsrfTokenRepository repo =
+    // CookieCsrfTokenRepository.withHttpOnlyFalse();
 
-        repo.setCookieCustomizer(cookie -> {
-            cookie.path("/");
-            cookie.sameSite("None");
-            cookie.secure(true);
-        });
+    // repo.setCookieCustomizer(cookie -> {
+    // cookie.path("/");
+    // cookie.sameSite("None");
+    // cookie.secure(true);
+    // });
 
-        return repo;
-    }
+    // return repo;
+    // }
 }

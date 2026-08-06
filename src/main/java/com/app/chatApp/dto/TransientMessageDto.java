@@ -1,12 +1,14 @@
 package com.app.chatApp.dto;
 
+import com.app.chatApp.vo.enums.MessageStatus;
+
 public class TransientMessageDto {
     private String type;
     private String sender;
     private String receiver;
     private String message;
     private long timeStamp;
-    private String status;
+    private MessageStatus status;
 
     public TransientMessageDto() {
     }
@@ -19,11 +21,11 @@ public class TransientMessageDto {
         this.timeStamp = System.currentTimeMillis();
     }
 
-    public String getStatus() {
+    public MessageStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(MessageStatus status) {
         this.status = status;
     }
 

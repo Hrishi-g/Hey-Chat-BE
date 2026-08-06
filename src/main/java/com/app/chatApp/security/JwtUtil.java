@@ -23,7 +23,7 @@ public class JwtUtil {
 
     public String generateJwtToken(RegisteredUsers user) {
         return Jwts.builder()
-                .subject(user.getName())
+                .subject(String.valueOf(user.getUserId()))
                 .claim("mblNo", user.getMblNo())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))
@@ -31,7 +31,7 @@ public class JwtUtil {
                 .compact();
     }
 
-    public String extractUsernameFromJwtToken(String token) {
+    public String extractUserIdFromJwtToken(String token) {
         return Jwts.parser()
                 .verifyWith(getSignKey())
                 .build()
