@@ -40,4 +40,12 @@ public class KafkaTopicConfig {
                 .replicas(1)
                 .build();
     }
+
+    @Bean
+    public NewTopic emailOtpTopic() {
+        return TopicBuilder.name("email-otp")
+                .partitions(2)
+                .replicas(1)
+                .build();
+    }
 }

@@ -16,6 +16,7 @@ public class CookieUtil {
     public void addJwtCookie(HttpServletResponse response, String jwtToken) {
         ResponseCookie cookie = ResponseCookie.from("jwt", jwtToken)
                 .httpOnly(true)
+                .partitioned(true)
                 .secure(cookieSecure)
                 .path("/")
                 .sameSite("None")

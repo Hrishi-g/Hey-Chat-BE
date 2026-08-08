@@ -21,6 +21,24 @@ spring:
       hibernate:
         dialect: ${JPA_HIBERNATE_DIALECT}
 
+  mail:
+    host: ${EMAIL_HOST}
+    port: ${EMAIL_PORT}
+    username: ${EMAIL_USERNAME}
+    password: ${EMAIL_PASSWORD}
+    from: ${EMAIL_FROM_USERNAME}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.ssl.enable: false
+      # mail.smtp.ssl.trust: ${EMAIL_HOST}
+      mail.debug: true
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
   kafka:
     bootstrap-servers: ${KAFKA_SERVER_URL}
     admin:
@@ -30,6 +48,10 @@ jwt:
 
 chat:
   secret: ${MSG_ENCRYPTION_SECRET}
+
+msg:
+  api-key: ${MSG_API_KEY}
+  device-key: ${MSG_DEVICE_KEY}
 
 cors:
   allowed-origins: ${ALLOWED_CORS_ORIGINS:http://localhost:5173,http://localhost:4000}

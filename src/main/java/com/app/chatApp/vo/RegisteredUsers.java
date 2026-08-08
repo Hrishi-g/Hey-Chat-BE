@@ -22,6 +22,8 @@ public class RegisteredUsers implements UserDetails {
     String name;
     @Column(name = "mbl_no", unique = true)
     String mblNo;
+    @Column(unique = true)
+    String email;
     String pass;
     @Column(name = "img_url")
     String imgUrl;
@@ -33,9 +35,11 @@ public class RegisteredUsers implements UserDetails {
     public RegisteredUsers() {
     }
 
-    public RegisteredUsers(String name, String mblNo, String pass, String imgUrl, String gender, String dob) {
+    public RegisteredUsers(String name, String mblNo, String email, String pass, String imgUrl, String gender,
+            String dob) {
         this.name = name;
         this.mblNo = mblNo;
+        this.email = email;
         this.pass = pass;
         this.imgUrl = imgUrl;
         this.gender = gender;
@@ -98,11 +102,20 @@ public class RegisteredUsers implements UserDetails {
         this.dob = dob;
     }
 
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
     @Override
     public String toString() {
-        return "registeredUsers [userId=" + userId + ", name=" + name + ", mblNo=" + mblNo + ", pass=" + pass
+        return "registeredUsers [userId=" + userId + ", name=" + name + ", mblNo=" + mblNo + ", email=" + email
+                + ", pass=" + pass
                 + ", imgUrl=" + imgUrl
-                + ", gender=" + gender + ", dob=" + dob + "]";
+                + ", gender=" + gender + ", dob=" + dob + ", createdDate=" + createdDate + "]";
     }
 
     @Override

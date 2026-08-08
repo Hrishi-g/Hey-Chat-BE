@@ -34,6 +34,18 @@ public class AuthController {
         return userSrc.login(userDto, clientType, httpResponse);
     }
 
+    @PostMapping("/verify-otp")
+    public ResponseEntity<String> verifyOtp(
+            @RequestHeader(value = "X-Client-Type", required = false, defaultValue = "web") String clientType,
+            @RequestBody com.app.chatApp.dto.OtpDto otpDto, HttpServletResponse httpResponse) {
+        return userSrc.verifyOtpAndLogin(otpDto.getMblNo(), otpDto.getOtp(), clientType, httpResponse);
+    }
+
+    @PostMapping("/verify-signup")
+    public ResponseEntity<String> verifySignup(@RequestBody com.app.chatApp.dto.OtpDto otpDto) {
+        return userSrc.verifySignup(otpDto.getMblNo(), otpDto.getOtp());
+    }
+
     @PostMapping("/logout")
     public ResponseEntity<String> logout(HttpServletResponse httpResponse) {
         return userSrc.logout(httpResponse);

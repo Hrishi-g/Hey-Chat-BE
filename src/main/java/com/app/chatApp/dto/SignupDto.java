@@ -16,9 +16,13 @@ public class SignupDto {
     private String imgUrl;
     private String gender;
     private String dob;
+    private String email;
+
+    public SignupDto() {
+    }
 
     public SignupDto(String name, String mblNo, String pass, String confirmPass, String imgUrl, String gender,
-            String dob) {
+            String dob, String email) {
         this.name = name;
         this.mblNo = mblNo;
         this.pass = pass;
@@ -26,6 +30,7 @@ public class SignupDto {
         this.imgUrl = imgUrl;
         this.gender = gender;
         this.dob = dob;
+        this.email = email;
     }
 
     public String getName() {
@@ -82,6 +87,14 @@ public class SignupDto {
 
     public void setDob(String dob) {
         this.dob = dob;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     @Override
