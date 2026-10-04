@@ -20,6 +20,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+// import com.app.chatApp.security.CsrfCookieFilter;
 import com.app.chatApp.security.JwtFilter;
 
 @Configuration
@@ -33,12 +34,22 @@ public class SecurityConfig {
 
     public SecurityConfig(JwtFilter jwtFilter) {
         this.jwtFilter = jwtFilter;
+        // this.csrfCookieFilter = csrfCookieFilter;
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
+                // csrf -> csrf
+                // .csrfTokenRepository(csrfTokenRepository())
+                // .csrfTokenRequestHandler(requestHandler)
+                // .sessionAuthenticationStrategy((authentication, request, response) -> {
+                // // No-op: Do not replace CSRF token on authentication
+                // })
+                // Ignore endpoints where authentication is already secured via JWT headers
+                // .ignoringRequestMatchers("/auth/**", "/ws/**")
+                // "/secure/ws-ticket")
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
@@ -48,6 +59,7 @@ public class SecurityConfig {
                         .requestMatchers("/user/**", "/secure/**").authenticated()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                // .addFilterAfter(csrfCookieFilter, CsrfFilter.class)
                 .build();
     }
 

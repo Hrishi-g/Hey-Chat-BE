@@ -5,14 +5,6 @@ logs/
 .idea/
 .vscode/
 
-src/main/resources/certs
-
 *.iml
 *.log
-
-.env
-
-HELP.md
-
-mvnw
 

@@ -60,15 +60,14 @@ public class UtilityHandler {
     private void sendWithLogging(String topic, String key, TransientMessageDto msg) {
         kafkaTemplate.send(topic, key, msg).whenComplete((result, ex) -> {
             if (ex != null) {
-                ex.printStackTrace();
-                // System.err.println("Failed to send message to Kafka topic [" + topic + "] with key [" + key + "]: "
-                //         + ex.getMessage());
+                System.err.println("Failed to send message to Kafka topic [" + topic + "] with key [" + key + "]: "
+                        + ex.getMessage());
             }
         });
     }
 
+    @Transactional
     public List<String> deliverPendingMessages(String receiverMblNo) {
-     
         List<String> uniqueSenders = messagesRepo.findUniqueSendersWithSentMessages(receiverMblNo);
         if (!uniqueSenders.isEmpty()) {
             messagesRepo.updateStatusByReceiver(receiverMblNo, MessageStatus.SENT, MessageStatus.DELIVERED,
