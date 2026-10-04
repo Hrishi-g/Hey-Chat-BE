@@ -1,0 +1,53 @@
+package com.app.chatApp.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.app.chatApp.dto.LoginDto;
+import com.app.chatApp.dto.SignupDto;
+import com.app.chatApp.service.AuthService;
+
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+
+    @Autowired
+    private AuthService userSrc;
+
+    @PostMapping("/signup")
+    public ResponseEntity<String> signUp(@Valid @RequestBody SignupDto userDto) {
+        return userSrc.signUp(userDto);
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<String> login(
+            @RequestHeader(value = "X-Client-Type", required = false, defaultValue = "web") String clientType,
+            @RequestBody LoginDto userDto, HttpServletResponse httpResponse) {
+        return userSrc.login(userDto, clientType, httpResponse);
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<String> verifyOtp(
+            @RequestHeader(value = "X-Client-Type", required = false, defaultValue = "web") String clientType,
+            @RequestBody com.app.chatApp.dto.OtpDto otpDto, HttpServletResponse httpResponse) {
+        return userSrc.verifyOtpAndLogin(otpDto.getMblNo(), otpDto.getOtp(), clientType, httpResponse);
+    }
+
+    @PostMapping("/verify-signup")
+    public ResponseEntity<String> verifySignup(@RequestBody com.app.chatApp.dto.OtpDto otpDto) {
+        return userSrc.verifySignup(otpDto.getMblNo(), otpDto.getOtp());
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(HttpServletResponse httpResponse) {
+        return userSrc.logout(httpResponse);
+    }
+}

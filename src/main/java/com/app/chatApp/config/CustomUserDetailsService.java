@@ -5,11 +5,16 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 
+import com.app.chatApp.repository.RegisteredUsersRepo;
+
 @Component
 public class CustomUserDetailsService implements UserDetailsService {
 
-    @org.springframework.beans.factory.annotation.Autowired
-    private com.app.chatApp.repository.RegisteredUsersRepo userRepo;
+    private RegisteredUsersRepo userRepo;
+
+    public CustomUserDetailsService(RegisteredUsersRepo userRepo) {
+        this.userRepo = userRepo;
+    }
 
     @Override
     public UserDetails loadUserByUsername(String mblNo) throws UsernameNotFoundException {

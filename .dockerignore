@@ -1,0 +1,27 @@
+# Ignore logback-spring.xml as requested
+src/main/resources/logback-spring.xml
+
+# Ignore local build outputs
+target/
+
+# Ignore local environment secrets
+.env
+.env*.local
+
+# Ignore version control and IDE configuration
+.git/
+.github/
+.idea/
+.vscode/
+*.iml
+
+# Ignore local logs
+logs/
+*.log
+
+# Ignore documentation/misc
+README.md
+HELP.md
+Dockerfile
+.dockerignore
+.docker-compose.yml

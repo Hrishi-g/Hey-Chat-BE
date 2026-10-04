@@ -1,82 +1,111 @@
 package com.app.chatApp.service;
 
-import org.springframework.http.HttpStatus;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
-import com.app.chatApp.config.CookieUtil;
-import com.app.chatApp.dto.LoginDto;
-import com.app.chatApp.dto.SignupDto;
+import com.app.chatApp.dto.ChatDto;
+import com.app.chatApp.dto.LastMsgChatDTo;
+import com.app.chatApp.dto.UserDto;
+import com.app.chatApp.repository.HomeMessageListRepo;
+import com.app.chatApp.repository.MessagesRepo;
 import com.app.chatApp.repository.RegisteredUsersRepo;
-import com.app.chatApp.security.JwtUtil;
 import com.app.chatApp.vo.RegisteredUsers;
-
-import jakarta.servlet.http.HttpServletResponse;
 
 @Service
 public class UserService {
 
-    private RegisteredUsersRepo userRepo;
-    private PasswordEncoder passwordEncoder;
-    private AuthenticationManager authenticationManager;
-    private JwtUtil jwtUtil;
-    private CookieUtil cookieUtil;
+    private MessagesRepo messagesRepo;
+    private RegisteredUsersRepo registeredUsersRepo;
+    private HomeMessageListRepo homeMessageListRepo;
 
-    public UserService(RegisteredUsersRepo userRepo, PasswordEncoder passwordEncoder,
-            AuthenticationManager authenticationManager, JwtUtil jwtUtil, CookieUtil cookieUtil) {
-        this.userRepo = userRepo;
-        this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
-        this.jwtUtil = jwtUtil;
-        this.cookieUtil = cookieUtil;
+    UserService(MessagesRepo messagesRepo, RegisteredUsersRepo registeredUsersRepo,
+            HomeMessageListRepo homeMessageListRepo) {
+        this.messagesRepo = messagesRepo;
+        this.registeredUsersRepo = registeredUsersRepo;
+        this.homeMessageListRepo = homeMessageListRepo;
     }
 
-    public ResponseEntity<String> signUp(SignupDto userDto) {
-        String user = userRepo.findByMblNo(userDto.getMblNo()).orElse(null);
-        if (user != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "User already exists");
-        }
-
-        if (!userDto.getPass().equals(userDto.getConfirmPass())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password does not match");
-        }
-        RegisteredUsers newUser = new RegisteredUsers();
-        newUser.setMblNo(userDto.getMblNo());
-        newUser.setName(userDto.getName());
-        newUser.setPass(passwordEncoder.encode(userDto.getPass()));
-        newUser.setDob(userDto.getDob());
-        newUser.setGender(userDto.getGender());
-        newUser.setImgUrl(userDto.getImgUrl());
-
-        userRepo.save(newUser);
-        return ResponseEntity.ok("User Registered Successfully");
+    public ResponseEntity<List<ChatDto>> getChatsBtwnUsers(String sender, String receiver) {
+        List<ChatDto> messages = messagesRepo.findAllChatsBtwnUsers(sender, receiver);
+        return ResponseEntity.ok(messages);
     }
 
-    public ResponseEntity<String> login(LoginDto userDto, String clientType, HttpServletResponse httpResponse) {
-        try {
-            Authentication auth = authenticationManager
-                    .authenticate(new UsernamePasswordAuthenticationToken(userDto.getMblNo(), userDto.getPass()));
-
-            RegisteredUsers user = (RegisteredUsers) auth.getPrincipal();
-
-            String jwtToken = jwtUtil.generateJwtToken(user);
-
-            if (clientType.equals("web")) {
-                cookieUtil.addJwtCookie(httpResponse, jwtToken);
-                return ResponseEntity.ok("Login Success");
-            } else {
-                return ResponseEntity.ok("Token: " + jwtToken);
+    public ResponseEntity<?> getHomeMessageChat(String mobNO) {
+        List<LastMsgChatDTo> messages = homeMessageListRepo.findLastMsgChatList(mobNO);
+        // Extract unique partner mobile numbers
+        List<String> partnerMblNos = messages.stream()
+                .filter(msg -> msg != null)
+                .map(msg -> msg.getChatUser())
+                .filter(mbl -> mbl != null)
+                .distinct()
+                .toList();
+        // Bulk fetch users
+        List<RegisteredUsers> users = registeredUsersRepo.findByMblNoIn(partnerMblNos);
+        // Map mobile number to RegisteredUsers
+        Map<String, RegisteredUsers> userMap = users.stream()
+                .filter(u -> u != null && u.getMblNo() != null)
+                .collect(Collectors.toMap(u -> u.getMblNo(), u -> u));
+        // Populate name and image details in DTOs
+        for (LastMsgChatDTo msg : messages) {
+            RegisteredUsers u = userMap.get(msg.getChatUser());
+            if (u != null) {
+                msg.setChatUserName(u.getName());
+                msg.setImgUrl(u.getImgUrl());
             }
-
-        } catch (AuthenticationException e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid Credentials");
         }
+        return ResponseEntity.ok(messages);
     }
 
+    @Cacheable(cacheNames = "profile", key = "#userId")
+    public UserDto getProfile(Long userId) {
+        // System.out.println(">>> Fetching profile from database for userId: " + userId
+        // + " (Cache Miss!)");
+        Optional<RegisteredUsers> user = registeredUsersRepo.findById(userId);
+        if (user.isEmpty()) {
+            return null;
+        }
+        UserDto userDto = new UserDto();
+        userDto.setName(user.get().getName());
+        userDto.setMblNo(user.get().getMblNo());
+        userDto.setDob(user.get().getDob());
+        userDto.setGender(user.get().getGender());
+        userDto.setImgUrl(user.get().getImgUrl());
+        return userDto;
+    }
+
+    @CachePut(cacheNames = "profile", key = "#userId")
+    public UserDto updateProfile(Long userId, UserDto updatedUser) {
+        Optional<RegisteredUsers> userOpt = registeredUsersRepo.findById(userId);
+        if (userOpt.isPresent()) {
+            RegisteredUsers user = userOpt.get();
+            if (updatedUser.getName() != null)
+                user.setName(updatedUser.getName());
+            if (updatedUser.getDob() != null)
+                user.setDob(updatedUser.getDob());
+            if (updatedUser.getGender() != null)
+                user.setGender(updatedUser.getGender());
+            if (updatedUser.getImgUrl() != null)
+                user.setImgUrl(updatedUser.getImgUrl());
+
+            registeredUsersRepo.save(user);
+            return getProfile(userId);
+        }
+        return null;
+    }
+
+    public ResponseEntity<Optional<RegisteredUsers>> getNewUser(String mobNO) {
+        Optional<RegisteredUsers> receiver = registeredUsersRepo.findUserByMblNo(mobNO);
+        if (receiver.isPresent()) {
+            return ResponseEntity.ok().body(receiver);
+        } else {
+            return ResponseEntity.ok(null);
+        }
+    }
 }

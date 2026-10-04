@@ -1,22 +1,116 @@
 spring:
   application:
     name: chatApp
+
   config:
     import: optional:file:.env[.properties]
+
   datasource:
     url: ${DATASOURCE_URL}
     username: ${DATASOURCE_USERNAME}
-    password: ${DATASOURCE_PASSWORD}
+    password: ${DATASOURCE_PASS}
     driver-class-name: ${DATASOURCE_DRIVER_CLASSNAME}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      keepalive-time: 60000
+
   jpa:
     show-sql: ${JPA_HIBERNATE_SHOW_SQL}
     generate-ddl: ${JPA_HIBERNATE_GENERATE_DDL}
     hibernate:
       ddl-auto: ${JPA_HIBERNATE_DDL_AUTO}
-      default_schema: ${DATASOURCE_SCHEMA}
     properties:
       hibernate:
         dialect: ${JPA_HIBERNATE_DIALECT}
 
+  mail:
+    host: ${EMAIL_HOST}
+    port: ${EMAIL_PORT}
+    username: ${EMAIL_USERNAME}
+    password: ${EMAIL_PASSWORD}
+    from: ${EMAIL_FROM_USERNAME}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.ssl.enable: false
+      # mail.smtp.ssl.trust: ${EMAIL_HOST}
+      mail.debug: false
+
+  data:
+    redis:
+      # host: ${SPRING_DATA_REDIS_HOST:redis}
+      # port: ${SPRING_DATA_REDIS_PORT:6379}
+      url: ${SPRING_DATA_REDIS_URL}
+      ssl: 
+        enabled: ${SPRING_DATA_REDIS_SSL}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 1
+          max-wait: 2000ms
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_AIVEN_SERVICE_URI}
+
+    properties:
+      security.protocol: SASL_SSL
+      sasl.mechanism: SCRAM-SHA-256
+      sasl.jaas.config: >-
+        org.apache.kafka.common.security.scram.ScramLoginModule required
+        username="${SPRING_KAFKA_USER:avnadmin}"
+        password="${SPRING_KAFKA_PASSWORD}";
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties: 
+        "max.block.ms": 3000
+    consumer:
+      group-id: chat-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
 jwt:
   secret: ${JWT_SECRET}
+
+chat:
+  secret: ${MSG_ENCRYPTION_SECRET}
+
+msg:
+  api-key: ${MSG_API_KEY}
+  device-key: ${MSG_DEVICE_KEY}
+
+cors:
+  allowed-origins: ${ALLOWED_CORS_ORIGINS:http://localhost:5173,http://localhost:4000}
+
+cookie:
+  secure: ${COOKIE_SECURE:false}
+
+cloudflare:
+  r2:
+    account-id: ${CLOUDFLARE_R2_ACCOUNT_ID}
+    access-key: ${CLOUDFLARE_R2_ACCESS_KEY}
+    secret-key: ${CLOUDFLARE_R2_SECRET_KEY}
+    bucket-name: ${CLOUDFLARE_R2_BUCKET_NAME}
+    public-domain: ${CLOUDFLARE_R2_PUBLIC_DOMAIN}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info,mappings"
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+  health:
+    probes:
+      enabled: true
+
+logging:
+  level:
+    org.springframework.security: TRACE

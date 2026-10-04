@@ -3,7 +3,7 @@ name: chatApp-BE CI/CD pipeline
 on:
   push:
     branches:
-      - main
+      - development
 
 jobs:
   build:
