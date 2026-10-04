@@ -14,25 +14,28 @@ public class CookieUtil {
     private boolean cookieSecure;
 
     public void addJwtCookie(HttpServletResponse response, String jwtToken) {
-        ResponseCookie cookie = ResponseCookie.from("jwt", jwtToken)
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from("jwt", jwtToken)
                 .httpOnly(true)
-                .partitioned(true)
                 .secure(cookieSecure)
                 .path("/")
-                .sameSite("None")
-                .maxAge(3600)
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+                .sameSite(cookieSecure ? "None" : "Lax")
+                .maxAge(3600);
+        if (cookieSecure) {
+            builder.partitioned(true);
+        }
+        response.addHeader(HttpHeaders.SET_COOKIE, builder.build().toString());
     }
 
     public void clearJwtCookie(HttpServletResponse response) {
-        ResponseCookie cookie = ResponseCookie.from("jwt", "")
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from("jwt", "")
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .path("/")
-                .sameSite("None")
-                .maxAge(0)
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+                .sameSite(cookieSecure ? "None" : "Lax")
+                .maxAge(0);
+        if (cookieSecure) {
+            builder.partitioned(true);
+        }
+        response.addHeader(HttpHeaders.SET_COOKIE, builder.build().toString());
     }
 }

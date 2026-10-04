@@ -1,7 +1,6 @@
 package com.app.chatApp.kafka;
 
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.annotation.TopicPartition;
 import org.springframework.stereotype.Component;
 
 import com.app.chatApp.dto.EmailOtpPayload;
@@ -17,22 +16,17 @@ public class EmailOtpConsumer {
     }
 
     @KafkaListener(
-        topicPartitions = @TopicPartition(topic = "email-otp", partitions = { "0" }),
+        topics = "email-otp",
         groupId = "email-otp-group",
         containerFactory = "emailOtpListenerContainerFactory"
     )
-    public void consumeLoginOtp(EmailOtpPayload payload) {
-        System.out.println("Kafka Consumer: Received Login OTP request: " + payload);
-        emailService.sendLoginOTP(payload.getEmail(), payload.getOtp(), payload.getName());
-    }
-
-    @KafkaListener(
-        topicPartitions = @TopicPartition(topic = "email-otp", partitions = { "1" }),
-        groupId = "email-otp-group",
-        containerFactory = "emailOtpListenerContainerFactory"
-    )
-    public void consumeSignupOtp(EmailOtpPayload payload) {
-        System.out.println("Kafka Consumer: Received Signup OTP request: " + payload);
-        emailService.sendSignupOTP(payload.getEmail(), payload.getOtp(), payload.getName());
+    public void consumeOtp(EmailOtpPayload payload) {
+        if (payload == null) return;
+        // System.out.println("Kafka Consumer: Received OTP request: " + payload);
+        if ("signup".equalsIgnoreCase(payload.getType())) {
+            emailService.sendSignupOTP(payload.getEmail(), payload.getOtp(), payload.getName());
+        } else {
+            emailService.sendLoginOTP(payload.getEmail(), payload.getOtp(), payload.getName());
+        }
     }
 }

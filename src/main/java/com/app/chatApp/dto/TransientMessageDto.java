@@ -3,12 +3,16 @@ package com.app.chatApp.dto;
 import com.app.chatApp.vo.enums.MessageStatus;
 
 public class TransientMessageDto {
+    private String msgId;
     private String type;
     private String sender;
     private String receiver;
     private String message;
     private long timeStamp;
     private MessageStatus status;
+    private Boolean isEdited = false;
+    private Boolean isDeletedForEveryone = false;
+    private String deletedForUsers;
 
     public TransientMessageDto() {
     }
@@ -19,6 +23,38 @@ public class TransientMessageDto {
         this.receiver = receiver;
         this.message = message;
         this.timeStamp = System.currentTimeMillis();
+    }
+
+    public String getMsgId() {
+        return msgId;
+    }
+
+    public void setMsgId(String msgId) {
+        this.msgId = msgId;
+    }
+
+    public Boolean getIsEdited() {
+        return isEdited;
+    }
+
+    public void setIsEdited(Boolean isEdited) {
+        this.isEdited = isEdited;
+    }
+
+    public Boolean getIsDeletedForEveryone() {
+        return isDeletedForEveryone;
+    }
+
+    public void setIsDeletedForEveryone(Boolean isDeletedForEveryone) {
+        this.isDeletedForEveryone = isDeletedForEveryone;
+    }
+
+    public String getDeletedForUsers() {
+        return deletedForUsers;
+    }
+
+    public void setDeletedForUsers(String deletedForUsers) {
+        this.deletedForUsers = deletedForUsers;
     }
 
     public MessageStatus getStatus() {

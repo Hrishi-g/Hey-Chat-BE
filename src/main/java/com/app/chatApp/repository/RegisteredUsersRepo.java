@@ -22,4 +22,8 @@ public interface RegisteredUsersRepo extends JpaRepository<RegisteredUsers, Long
 
     List<RegisteredUsers> findByMblNoIn(Collection<String> mblNos);
 
+    boolean existsByEmail(String email);
+
+    boolean existsByMblNo(String mblNo);
+
 }

@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.app.chatApp.config.CookieUtil;
 import com.app.chatApp.dto.LoginDto;
 import com.app.chatApp.dto.SignupDto;
+import com.app.chatApp.dto.SignupSessionDto;
 import com.app.chatApp.dto.EmailOtpPayload;
 import com.app.chatApp.repository.RegisteredUsersRepo;
 import com.app.chatApp.security.JwtUtil;
@@ -39,9 +40,8 @@ public class AuthService {
     private KafkaTemplate<String, Object> kafkaTemplate;
 
     public AuthService(RegisteredUsersRepo userRepo, PasswordEncoder passwordEncoder,
-            AuthenticationManager authenticationManager, JwtUtil jwtUtil, CookieUtil cookieUtil,
-            RedisTemplate<String, Object> redisTemplate,
-            KafkaTemplate<String, Object> kafkaTemplate) {
+            AuthenticationManager authenticationManager, JwtUtil jwtUtil, CookieUtil cookieUtil, 
+        RedisTemplate<String, Object> redisTemplate, KafkaTemplate<String, Object> kafkaTemplate) {
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
@@ -52,9 +52,11 @@ public class AuthService {
     }
 
     public ResponseEntity<String> signUp(SignupDto userDto) {
-        String user = userRepo.findByMblNo(userDto.getMblNo()).orElse(null);
-        if (user != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "User already exists");
+        if (userRepo.existsByMblNo(userDto.getMblNo()) || userRepo.findByMblNo(userDto.getMblNo()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "User mobile number already registered");
+        }
+        if (userDto.getEmail() != null && userRepo.existsByEmail(userDto.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "User email already registered");
         }
 
         if (!userDto.getPass().equals(userDto.getConfirmPass())) {
@@ -62,20 +64,17 @@ public class AuthService {
         }
 
         // Check if signup OTP is already active in Redis
-        String storedOtp = (String) redisTemplate.opsForValue().get("signup_otp:" + userDto.getMblNo());
-        if (storedOtp != null) {
-            Object storedDataObj = redisTemplate.opsForValue().get("signup_data:" + userDto.getMblNo());
-            if (storedDataObj != null) {
-                SignupDto storedData;
-                if (storedDataObj instanceof SignupDto) {
-                    storedData = (SignupDto) storedDataObj;
-                } else {
-                    ObjectMapper mapper = new ObjectMapper();
-                    storedData = mapper.convertValue(storedDataObj, SignupDto.class);
-                }
-                if (storedData.getEmail().equals(userDto.getEmail())) {
-                    return ResponseEntity.ok("OTP_ACTIVE:OTP already sent on email");
-                }
+        Object storedSessionObj = redisTemplate.opsForValue().get("signup_session:" + userDto.getMblNo());
+        if (storedSessionObj != null) {
+            SignupSessionDto session;
+            if (storedSessionObj instanceof SignupSessionDto) {
+                session = (SignupSessionDto) storedSessionObj;
+            } else {
+                ObjectMapper mapper = new ObjectMapper();
+                session = mapper.convertValue(storedSessionObj, SignupSessionDto.class);
+            }
+            if (session.getSignupData() != null && session.getSignupData().getEmail().equals(userDto.getEmail())) {
+                return ResponseEntity.ok("OTP_ACTIVE:OTP already sent on email");
             }
         }
 
@@ -84,35 +83,43 @@ public class AuthService {
         int otp = random.nextInt(900000) + 100000;
         String otpStr = String.valueOf(otp);
 
-        // Store OTP and signup data in Redis for 5 minutes
-        redisTemplate.opsForValue().set("signup_otp:" + userDto.getMblNo(), otpStr, Duration.ofMinutes(5));
-        redisTemplate.opsForValue().set("signup_data:" + userDto.getMblNo(), userDto, Duration.ofMinutes(5));
+        // Store OTP and signup data together in single Redis key for 5 minutes
+        SignupSessionDto signupSession = new SignupSessionDto(otpStr, userDto);
+        redisTemplate.opsForValue().set("signup_session:" + userDto.getMblNo(), signupSession, Duration.ofMinutes(5));
 
         // Send OTP via Kafka (Partition 1: Signup)
         EmailOtpPayload payload = new EmailOtpPayload(userDto.getEmail(), otpStr, userDto.getName(), "signup");
         kafkaTemplate.send("email-otp", 1, userDto.getMblNo(), payload);
 
-        System.out.println("Signup OTP: " + otpStr);
+        // System.out.println("Signup OTP: " + otpStr);
         return ResponseEntity.ok("OTP sent successfully, Email: " + userDto.getEmail());
     }
 
     public ResponseEntity<String> verifySignup(String mblNo, String otp) {
-        String storedOtp = (String) redisTemplate.opsForValue().get("signup_otp:" + mblNo);
-        if (storedOtp == null || !storedOtp.equals(otp)) {
+        Object storedSessionObj = redisTemplate.opsForValue().get("signup_session:" + mblNo);
+        if (storedSessionObj == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired OTP");
         }
 
-        Object storedDataObj = redisTemplate.opsForValue().get("signup_data:" + mblNo);
-        if (storedDataObj == null) {
+        SignupSessionDto session;
+        if (storedSessionObj instanceof SignupSessionDto) {
+            session = (SignupSessionDto) storedSessionObj;
+        } else {
+            ObjectMapper mapper = new ObjectMapper();
+            session = mapper.convertValue(storedSessionObj, SignupSessionDto.class);
+        }
+
+        if (session.getOtp() == null || !session.getOtp().equals(otp)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired OTP");
+        }
+
+        SignupDto signupDto = session.getSignupData();
+        if (signupDto == null) {
             throw new ResponseStatusException(HttpStatus.GONE, "Signup session expired");
         }
 
-        SignupDto signupDto;
-        if (storedDataObj instanceof SignupDto) {
-            signupDto = (SignupDto) storedDataObj;
-        } else {
-            ObjectMapper mapper = new ObjectMapper();
-            signupDto = mapper.convertValue(storedDataObj, SignupDto.class);
+        if (signupDto.getEmail() != null && userRepo.existsByEmail(signupDto.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "User email already registered");
         }
 
         // Save new user
@@ -125,11 +132,20 @@ public class AuthService {
         newUser.setImgUrl(signupDto.getImgUrl());
         newUser.setEmail(signupDto.getEmail());
 
-        userRepo.save(newUser);
+        try {
+            userRepo.save(newUser);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            if (msg.contains("email")) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "User email already registered");
+            } else if (msg.contains("mbl") || msg.contains("mobile")) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "User mobile number already registered");
+            }
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "User email already registered");
+        }
 
-        // Delete from Redis
-        redisTemplate.delete("signup_otp:" + mblNo);
-        redisTemplate.delete("signup_data:" + mblNo);
+        // Delete single key from Redis
+        redisTemplate.delete("signup_session:" + mblNo);
 
         return ResponseEntity.ok("User Registered Successfully");
     }
@@ -140,13 +156,13 @@ public class AuthService {
                     .authenticate(new UsernamePasswordAuthenticationToken(userDto.getMblNo(), userDto.getPass()));
 
             RegisteredUsers user = (RegisteredUsers) auth.getPrincipal();
-            System.out.println("User Details: " + user.toString());
+            // System.out.println("User Details: " + user.toString());
 
             String otpResult = setOtp(user.getMblNo(), user.getEmail(), user.getName());
             if (otpResult.startsWith("OTP_ACTIVE:")) {
                 return ResponseEntity.ok(otpResult);
             }
-            System.out.println("OTP: " + otpResult);
+            // System.out.println("OTP: " + otpResult);
 
             return ResponseEntity.ok("OTP sent successfully, Email: " + user.getEmail());
         } catch (AuthenticationException e) {
@@ -194,7 +210,7 @@ public class AuthService {
 
     public ResponseEntity<String> verifyOtpAndLogin(String mblNo, String otp, String clientType,
             HttpServletResponse httpResponse) {
-        System.out.println("httpResponse: " + httpResponse);
+        // System.out.println("httpResponse: " + httpResponse);
         boolean verified = verifyOtp(mblNo, otp);
         if (!verified) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired OTP");
@@ -205,7 +221,7 @@ public class AuthService {
 
         String jwtToken = jwtUtil.generateJwtToken(user);
 
-        if (clientType.equals("web")) {
+        if ("web".equalsIgnoreCase(clientType)) {
             cookieUtil.addJwtCookie(httpResponse, jwtToken);
             return ResponseEntity.ok("Login Success");
         } else {

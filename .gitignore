@@ -8,7 +8,3 @@ logs/
 *.iml
 *.log
 
-README.md
-.env
-
-HELP.md

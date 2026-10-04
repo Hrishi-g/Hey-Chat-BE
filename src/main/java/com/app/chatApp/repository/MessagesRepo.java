@@ -14,14 +14,16 @@ import com.app.chatApp.vo.enums.MessageStatus;
 
 import jakarta.transaction.Transactional;
 
+import java.util.Optional;
+
 @Repository
 public interface MessagesRepo extends JpaRepository<Messages, Long> {
 
-        @Query("SELECT new com.app.chatApp.dto.ChatDto(m.sender, m.receiver, m.msg,m.status, m.createdTime, m.delieverdTime, m.receiverTime) FROM Messages m WHERE m.sender=:mobNO ORDER BY m.createdTime DESC")
+        @Query("SELECT new com.app.chatApp.dto.ChatDto(COALESCE(m.clientMsgId, CAST(m.msgId AS string)), m.sender, m.receiver, m.msg, m.status, m.createdTime, m.delieverdTime, m.receiverTime, m.isEdited, m.isDeletedForEveryone, m.deletedForUsers) FROM Messages m WHERE m.sender=:mobNO ORDER BY m.createdTime DESC")
         List<ChatDto> findAllBySenderMobNO(@Param("mobNO") String mobNO);
 
         @Query("""
-                        SELECT new com.app.chatApp.dto.ChatDto(m.sender, m.receiver, m.msg,m.status, m.createdTime, m.delieverdTime, m.receiverTime)
+                        SELECT new com.app.chatApp.dto.ChatDto(COALESCE(m.clientMsgId, CAST(m.msgId AS string)), m.sender, m.receiver, m.msg, m.status, m.createdTime, m.delieverdTime, m.receiverTime, m.isEdited, m.isDeletedForEveryone, m.deletedForUsers)
                         FROM Messages m
                         WHERE (m.sender = :sender AND m.receiver = :receiver)
                         OR (m.sender = :receiver AND m.receiver = :sender)
@@ -30,6 +32,18 @@ public interface MessagesRepo extends JpaRepository<Messages, Long> {
         List<ChatDto> findAllChatsBtwnUsers(
                         @Param("sender") String sender,
                         @Param("receiver") String receiver);
+
+        Optional<Messages> findByClientMsgId(String clientMsgId);
+
+        Optional<Messages> findByClientMsgIdAndSender(String clientMsgId, String sender);
+
+        @Query("""
+                        SELECT m FROM Messages m
+                        WHERE (m.sender = :sender AND m.receiver = :receiver)
+                        OR (m.sender = :receiver AND m.receiver = :sender)
+                        ORDER BY m.msgId DESC
+                        """)
+        List<Messages> findLatestMessageBetweenUsers(@Param("sender") String sender, @Param("receiver") String receiver);
 
         @Query("SELECT DISTINCT m.sender FROM Messages m WHERE m.receiver = :receiver AND m.status = 'SENT'")
         List<String> findUniqueSendersWithSentMessages(@Param("receiver") String receiver);

@@ -15,9 +15,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-// import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-// import org.springframework.security.web.csrf.CsrfFilter;
-import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -33,10 +30,6 @@ public class SecurityConfig {
     @Value("${cors.allowed-origins}")
     private String allowedOrigins;
 
-    @Value("${cookie.secure}")
-    private boolean cookieSecure;
-
-    // private final CsrfCookieFilter csrfCookieFilter;
     private final JwtFilter jwtFilter;
 
     public SecurityConfig(JwtFilter jwtFilter) {
@@ -46,11 +39,6 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-
-        // Use standard attribute handler and disable deferred token name resolution
-        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
-        requestHandler.setCsrfRequestAttributeName(null);
-
         return http
                 .csrf(csrf -> csrf.disable())
                 // csrf -> csrf
@@ -110,18 +98,4 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", config);
         return source;
     }
-
-    // @Bean
-    // CookieCsrfTokenRepository csrfTokenRepository() {
-    // CookieCsrfTokenRepository repo =
-    // CookieCsrfTokenRepository.withHttpOnlyFalse();
-
-    // repo.setCookieCustomizer(cookie -> {
-    // cookie.path("/");
-    // cookie.sameSite("None");
-    // cookie.secure(true);
-    // });
-
-    // return repo;
-    // }
 }

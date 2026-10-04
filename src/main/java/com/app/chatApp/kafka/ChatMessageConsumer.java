@@ -16,58 +16,72 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
 
+import com.app.chatApp.handlers.UtilityHandler;
+
 @Service
 @Transactional
 public class ChatMessageConsumer {
 
-    private MessagesRepo messagesRepo;
-    private HomeMessageListRepo homeMessageListRepo;
+    private final MessagesRepo messagesRepo;
+    private final HomeMessageListRepo homeMessageListRepo;
+    private final UtilityHandler utilityHandler;
 
-    ChatMessageConsumer(MessagesRepo messagesRepo, HomeMessageListRepo homeMessageListRepo) {
+    ChatMessageConsumer(MessagesRepo messagesRepo, HomeMessageListRepo homeMessageListRepo, UtilityHandler utilityHandler) {
         this.messagesRepo = messagesRepo;
         this.homeMessageListRepo = homeMessageListRepo;
+        this.utilityHandler = utilityHandler;
     }
 
-    @KafkaListener(topics = "chat-messages", groupId = "chat-group", concurrency = "3")
-    public void consumeAndSave(TransientMessageDto msg) {
+    @KafkaListener(topics = "chat-messages", groupId = "chat-group")
+    public void consumeChatMessage(TransientMessageDto msg) {
+        if (msg == null) {
+            return;
+        }
+
+        String type = msg.getType();
+        if ("EDIT".equals(type)) {
+            utilityHandler.processEditInDatabase(msg);
+        } else if ("DELETE_FOR_ME".equals(type) || "DELETE_EVERYONE".equals(type)) {
+            utilityHandler.processDeleteInDatabase(msg);
+        } else {
+            // Standard CHAT message: save to Messages & update HomeMessageList
+            saveChatMessageAndHome(msg);
+        }
+    }
+
+    private void saveChatMessageAndHome(TransientMessageDto msg) {
         Messages message = new Messages();
+        message.setClientMsgId(msg.getMsgId());
         message.setSender(msg.getSender());
         message.setReceiver(msg.getReceiver());
         message.setMsg(msg.getMessage());
         message.setStatus(msg.getStatus());
 
-        LocalDateTime sentTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(msg.getTimeStamp()),
+        LocalDateTime sentTime = LocalDateTime.ofInstant(
+                Instant.ofEpochMilli(msg.getTimeStamp() != 0 ? msg.getTimeStamp() : System.currentTimeMillis()),
                 ZoneId.systemDefault());
         message.setSentTime(sentTime);
-        if (msg.getStatus().equals(MessageStatus.DELIVERED)) {
+        if (msg.getStatus() != null && msg.getStatus().equals(MessageStatus.DELIVERED)) {
             message.setDelieverdTime(LocalDateTime.now());
         }
         messagesRepo.save(message);
-    }
 
-    @KafkaListener(topics = "home-chat", groupId = "chat-group", concurrency = "3")
-    public void consumeAndSaveHome(TransientMessageDto msg) {
+        // Update home message summary
         Optional<HomeMessageList> existingChat = homeMessageListRepo.checkIfUserExistInHomeMessageChat(
                 msg.getSender(),
                 msg.getReceiver());
 
-        HomeMessageList home;
+        HomeMessageList home = existingChat.orElseGet(() -> {
+            HomeMessageList h = new HomeMessageList();
+            h.setSender(msg.getSender());
+            h.setReceiver(msg.getReceiver());
+            return h;
+        });
 
-        if (existingChat.isPresent()) {
-            home = existingChat.get();
-        } else {
-            home = new HomeMessageList();
-            home.setSender(msg.getSender());
-            home.setReceiver(msg.getReceiver());
-        }
         home.setLastMsg(msg.getMessage());
         home.setStatus(msg.getStatus());
-
-        LocalDateTime sentTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(msg.getTimeStamp()),
-                ZoneId.systemDefault());
         home.setLastMessageTime(sentTime);
 
         homeMessageListRepo.save(home);
-
     }
 }

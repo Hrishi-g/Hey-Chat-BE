@@ -20,6 +20,7 @@ public class Messages {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long msgId;
+    String clientMsgId;
     String sender;
     String receiver;
     @ColumnTransformer(read = "pgp_sym_decrypt(msg, '" + "${chat.secret}" + "')", write = "pgp_sym_encrypt(?::text, '"
@@ -32,9 +33,22 @@ public class Messages {
     LocalDateTime sentTime;
     LocalDateTime delieverdTime;
     LocalDateTime receiverTime;
+    Boolean isEdited = false;
+    LocalDateTime editedTime;
+    Boolean isDeletedForEveryone = false;
+    String deletedForUsers;
+    LocalDateTime deletedTime;
 
     public Long getMsgId() {
         return msgId;
+    }
+
+    public String getClientMsgId() {
+        return clientMsgId;
+    }
+
+    public void setClientMsgId(String clientMsgId) {
+        this.clientMsgId = clientMsgId;
     }
 
     public String getSender() {
@@ -99,6 +113,46 @@ public class Messages {
 
     public void setReceiverTime(LocalDateTime receiverTime) {
         this.receiverTime = receiverTime;
+    }
+
+    public Boolean getIsEdited() {
+        return isEdited;
+    }
+
+    public void setIsEdited(Boolean isEdited) {
+        this.isEdited = isEdited;
+    }
+
+    public LocalDateTime getEditedTime() {
+        return editedTime;
+    }
+
+    public void setEditedTime(LocalDateTime editedTime) {
+        this.editedTime = editedTime;
+    }
+
+    public Boolean getIsDeletedForEveryone() {
+        return isDeletedForEveryone;
+    }
+
+    public void setIsDeletedForEveryone(Boolean isDeletedForEveryone) {
+        this.isDeletedForEveryone = isDeletedForEveryone;
+    }
+
+    public String getDeletedForUsers() {
+        return deletedForUsers;
+    }
+
+    public void setDeletedForUsers(String deletedForUsers) {
+        this.deletedForUsers = deletedForUsers;
+    }
+
+    public LocalDateTime getDeletedTime() {
+        return deletedTime;
+    }
+
+    public void setDeletedTime(LocalDateTime deletedTime) {
+        this.deletedTime = deletedTime;
     }
 
     @Override

@@ -21,7 +21,7 @@ import tools.jackson.databind.ObjectMapper;
 public class ChatHandler extends TextWebSocketHandler {
 
     private final OneTimeTicketService ticketService;
-    private UtilityHandler utilityHandler;
+    private final UtilityHandler utilityHandler;
     private final ObjectMapper objectMapper;
 
     ChatHandler(OneTimeTicketService ticketService, UtilityHandler utilityHandler, ObjectMapper objectMapper) {
@@ -30,8 +30,25 @@ public class ChatHandler extends TextWebSocketHandler {
         this.objectMapper = objectMapper;
     }
 
-    Map<String, WebSocketSession> users = new ConcurrentHashMap<>();
+    private final Map<String, WebSocketSession> users = new ConcurrentHashMap<>();
 
+    private WebSocketSession getOnlineSession(String mblNo) {
+        if (mblNo == null) {
+            return null;
+        }
+        WebSocketSession wsSession = users.get(mblNo);
+        if (wsSession != null) {
+            if (!wsSession.isOpen()) {
+                users.remove(mblNo, wsSession);
+                broadcastUserStatus(mblNo, "OFFLINE");
+                return null;
+            }
+            return wsSession;
+        }
+        return null;
+    }
+
+    @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         String ticket = session.getUri().getQuery().split("=")[1];
 
@@ -43,16 +60,29 @@ public class ChatHandler extends TextWebSocketHandler {
 
         session.getAttributes().put("mblNo", mblNo);
 
-        users.put(mblNo, session);
+        // If an old session existed for this user, close it
+        WebSocketSession oldSession = users.put(mblNo, session);
+        if (oldSession != null && oldSession.isOpen() && !oldSession.equals(session)) {
+            try {
+                oldSession.close(CloseStatus.NORMAL);
+            } catch (Exception ignored) {
+            }
+        }
 
         // Send list of currently online users to the connected user
         try {
+            List<String> activeUsers = users.entrySet().stream()
+                    .filter(e -> e.getValue() != null && e.getValue().isOpen())
+                    .map(Map.Entry::getKey)
+                    .toList();
+
             Map<String, Object> onlineListEvent = new HashMap<>();
             onlineListEvent.put("type", "ONLINE_USERS_LIST");
-            onlineListEvent.put("users", users.keySet());
+            onlineListEvent.put("users", activeUsers);
             session.sendMessage(new TextMessage(objectMapper.writeValueAsString(onlineListEvent)));
         } catch (Exception e) {
-            System.err.println("Failed to send online users list to " + mblNo + ": " + e.getMessage());
+            e.printStackTrace();
+            // System.err.println("Failed to send online users list to " + mblNo + ": " + e.getMessage());
         }
 
         // Broadcast to other users that this user is online
@@ -61,7 +91,7 @@ public class ChatHandler extends TextWebSocketHandler {
         try {
             List<String> sendersToNotify = utilityHandler.deliverPendingMessages(mblNo);
             for (String senderMblNo : sendersToNotify) {
-                WebSocketSession senderSession = users.get(senderMblNo);
+                WebSocketSession senderSession = getOnlineSession(senderMblNo);
                 if (senderSession != null && senderSession.isOpen()) {
                     Map<String, Object> updateEvent = new HashMap<>();
                     updateEvent.put("type", "STATUS_UPDATE");
@@ -72,7 +102,7 @@ public class ChatHandler extends TextWebSocketHandler {
                 }
             }
         } catch (Exception e) {
-            System.err.println("Failed to update and notify of pending messages for " + mblNo + ": " + e.getMessage());
+            // System.err.println("Failed to update and notify of pending messages for " + mblNo + ": " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -89,15 +119,21 @@ public class ChatHandler extends TextWebSocketHandler {
                 if (!entry.getKey().equals(mblNo)) {
                     WebSocketSession wsSession = entry.getValue();
                     if (wsSession != null && wsSession.isOpen()) {
-                        wsSession.sendMessage(textMessage);
+                        try {
+                            wsSession.sendMessage(textMessage);
+                        } catch (Exception e) {
+                            users.remove(entry.getKey(), wsSession);
+                        }
                     }
                 }
             }
         } catch (Exception e) {
-            System.err.println("Failed to broadcast user status: " + e.getMessage());
+            e.printStackTrace();
+            // System.err.println("Failed to broadcast user status: " + e.getMessage());
         }
     }
 
+    @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
 
         TransientMessageDto msg = objectMapper.readValue(message.getPayload(), TransientMessageDto.class);
@@ -108,9 +144,57 @@ public class ChatHandler extends TextWebSocketHandler {
             if ("PING".equals(msg.getType())) {
                 return;
             }
+            if ("EDIT".equals(msg.getType())) {
+                try {
+                    msg.setIsEdited(true);
+                    utilityHandler.sendEditMessage(msg);
+
+                    String editJson = objectMapper.writeValueAsString(msg);
+
+                    if (session.isOpen()) {
+                        session.sendMessage(new TextMessage(editJson));
+                    }
+                    WebSocketSession receiverSession = getOnlineSession(msg.getReceiver());
+                    if (receiverSession != null && receiverSession.isOpen() && !receiverSession.equals(session)) {
+                        receiverSession.sendMessage(new TextMessage(editJson));
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    // System.err.println("Failed to process EDIT event: " + e.getMessage());
+                }
+                return;
+            }
+            if ("DELETE_FOR_ME".equals(msg.getType())) {
+                try {
+                    utilityHandler.sendDeleteMessage(msg);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    // System.err.println("Failed to process DELETE_FOR_ME event: " + e.getMessage());
+                }
+                return;
+            }
+            if ("DELETE_EVERYONE".equals(msg.getType())) {
+                try {
+                    msg.setIsDeletedForEveryone(true);
+                    utilityHandler.sendDeleteMessage(msg);
+
+                    String deleteJson = objectMapper.writeValueAsString(msg);
+                    if (session.isOpen()) {
+                        session.sendMessage(new TextMessage(deleteJson));
+                    }
+                    WebSocketSession receiverSession = getOnlineSession(msg.getReceiver());
+                    if (receiverSession != null && receiverSession.isOpen() && !receiverSession.equals(session)) {
+                        receiverSession.sendMessage(new TextMessage(deleteJson));
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    // System.err.println("Failed to process DELETE_EVERYONE event: " + e.getMessage());
+                }
+                return;
+            }
             if ("READ".equals(msg.getType())) {
                 utilityHandler.markMessagesAsRead(msg.getReceiver(), msg.getSender());
-                WebSocketSession originalSenderSession = users.get(msg.getReceiver());
+                WebSocketSession originalSenderSession = getOnlineSession(msg.getReceiver());
                 if (originalSenderSession != null && originalSenderSession.isOpen()) {
                     Map<String, Object> updateEvent = new HashMap<>();
                     updateEvent.put("type", "STATUS_UPDATE");
@@ -134,7 +218,7 @@ public class ChatHandler extends TextWebSocketHandler {
             }
 
             msg.setType("CHAT");
-            WebSocketSession receiverSession = users.get(msg.getReceiver());
+            WebSocketSession receiverSession = getOnlineSession(msg.getReceiver());
             // Both Online
             if (receiverSession != null && receiverSession.isOpen()) {
                 // save message with delivered status
@@ -145,7 +229,16 @@ public class ChatHandler extends TextWebSocketHandler {
 
                 msg.setStatus(MessageStatus.DELIVERED);
                 String chatJson = objectMapper.writeValueAsString(msg);
-                receiverSession.sendMessage(new TextMessage(chatJson));
+
+                try {
+                    receiverSession.sendMessage(new TextMessage(chatJson));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    // System.err.println("Failed to deliver message to receiver socket: " + e.getMessage());
+                    users.remove(msg.getReceiver(), receiverSession);
+                    broadcastUserStatus(msg.getReceiver(), "OFFLINE");
+                }
+
                 if (!receiverSession.equals(session)) {
                     session.sendMessage(new TextMessage(chatJson));
                 }
@@ -162,10 +255,6 @@ public class ChatHandler extends TextWebSocketHandler {
                 String chatJson = objectMapper.writeValueAsString(msg);
                 session.sendMessage(new TextMessage(chatJson));
             }
-        } else {
-            // System.out.println(
-            // "Sender mismatch or unauthorized: msg sender=" + msg.getSender() + ",
-            // session=" + sessionMblNo);
         }
     }
 
@@ -174,8 +263,10 @@ public class ChatHandler extends TextWebSocketHandler {
             throws Exception {
         String mblNo = (String) session.getAttributes().get("mblNo");
         if (mblNo != null) {
-            users.remove(mblNo);
-            broadcastUserStatus(mblNo, "OFFLINE");
+            boolean removed = users.remove(mblNo, session);
+            if (removed) {
+                broadcastUserStatus(mblNo, "OFFLINE");
+            }
         }
     }
 }
