@@ -10,7 +10,6 @@ src/main/resources/certs
 *.iml
 *.log
 
-README.md
 .env
 
 HELP.md
